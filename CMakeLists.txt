@@ -3,7 +3,8 @@ project(tensorboard_logger)
 
 option(BUILD_TEST "Build test" OFF)
 
-find_package(Protobuf REQUIRED)
+# find_package(Protobuf REQUIRED) # Handled by Conan in consuming project
+# find_package(ZLIB REQUIRED) # Assume handled by Conan if needed
 
 # -----------------------------------------------------------------------------
 # Building the tensorboard_logger library
@@ -11,12 +12,15 @@ find_package(Protobuf REQUIRED)
 
 file(GLOB protos "proto/*.proto")
 
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${protos})
+# protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${protos}) # Generation should be handled by consuming project if necessary, or manually
+# Ensure proto source/header variables exist, even if empty, if generation is skipped
+set(PROTO_SRCS "")
+set(PROTO_HDRS "")
 
 add_library(tensorboard_logger
     "src/crc.cc"
     "src/tensorboard_logger.cc"
-    ${PROTO_SRCS}
+    # ${PROTO_SRCS} # Link pre-generated headers/sources if not generated here
 )
 
 target_compile_features(tensorboard_logger PRIVATE cxx_std_11)
@@ -26,25 +30,29 @@ target_include_directories(tensorboard_logger
 PUBLIC
     $<INSTALL_INTERFACE:include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${PROTOBUF_INCLUDE_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    # $<BUILD_INTERFACE:${PROTOBUF_INCLUDE_DIR}> # Include dirs handled by Conan target
+    # $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> # Include generated headers if needed
 )
-target_link_libraries(tensorboard_logger PUBLIC ${Protobuf_LIBRARIES})
+
+target_link_libraries(tensorboard_logger 
+    PUBLIC 
+        protobuf::protobuf # Link Conan target
+        # ZLIB::ZLIB # Link Conan ZLIB target if it was a dependency
+        Threads::Threads # Assuming Threads is still needed and found by system/CMake
+)
 
 if (BUILD_TEST)
     add_executable(tensorboard_logger_test tests/test_tensorboard_logger.cc)
     target_compile_features(tensorboard_logger_test PRIVATE cxx_std_11)
     target_compile_options(tensorboard_logger_test PRIVATE -Wall -O2)
-    target_include_directories(tensorboard_logger_test
-    PRIVATE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-    )
+    # target_include_directories(tensorboard_logger_test
+    # PRIVATE
+    #     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    # )
     target_link_libraries(tensorboard_logger_test tensorboard_logger)
 endif()
 
-# -----------------------------------------------------------------------------
-# Installing the tensorboard_logger library
-# -----------------------------------------------------------------------------
+# --- Installation rules might need adjustment if proto generation is moved --- 
 
 install(
     TARGETS tensorboard_logger
@@ -79,10 +87,10 @@ install(
     DESTINATION include
 )
 
-install(
-    DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/"
-    DESTINATION include
-    FILES_MATCHING
-    PATTERN "*.pb.h"
-    PATTERN "CMakeFiles" EXCLUDE
-)
+# install(
+#     DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/"
+#     DESTINATION include
+#     FILES_MATCHING
+#     PATTERN "*.pb.h"
+#     PATTERN "CMakeFiles" EXCLUDE
+# )
