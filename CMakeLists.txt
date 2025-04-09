@@ -37,7 +37,7 @@ PUBLIC
 target_link_libraries(tensorboard_logger 
     PUBLIC 
         protobuf::protobuf # Link Conan target
-        # ZLIB::ZLIB # Link Conan ZLIB target if it was a dependency
+        ZLIB::ZLIB # Link Conan ZLIB target (Uncommented based on original CMakeLists)
         Threads::Threads # Assuming Threads is still needed and found by system/CMake
 )
 
